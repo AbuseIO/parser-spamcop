@@ -1,0 +1,8 @@
+{
+    "name": "abuseio/parser-spamcop",
+    "description": "Parser addon for handling notifications from spamcop",
+    "require": {
+        "php": ">=5.4.0",
+        "another-vendor/package": "1.*"
+    }
+}

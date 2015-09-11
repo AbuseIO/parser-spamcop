@@ -17,12 +17,21 @@ return [
     ],
 
     'feeds' => [
-        'report' => [
+        'spamreport' => [
             'class'     => 'SPAM',
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
-                //
+                'Source-IP',
+            ],
+        ],
+
+        'spamvertizedreport' => [
+            'class'     => 'SPAM',
+            'type'      => 'Spamvertised web site',
+            'enabled'   => true,
+            'fields'    => [
+                'Source-IP',
             ],
         ],
 

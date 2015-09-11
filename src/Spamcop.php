@@ -8,7 +8,7 @@ use Ddeboer\DataImport\Filter;
 use Log;
 use ReflectionClass;
 
-class Netcraft extends Parser
+class Spamcop extends Parser
 {
     public $parsedMail;
     public $arfMail;

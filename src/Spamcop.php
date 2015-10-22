@@ -2,25 +2,17 @@
 
 namespace AbuseIO\Parsers;
 
-use Ddeboer\DataImport\Reader;
-use Ddeboer\DataImport\Writer;
-use Ddeboer\DataImport\Filter;
 use PhpMimeMailParser\Parser as MimeParser;
-use Log;
-use ReflectionClass;
 
 class Spamcop extends Parser
 {
-    public $parsedMail;
-    public $arfMail;
 
     /**
-     * Create a new Blocklistde instance
+     * Create a new Spamcop instance
      */
     public function __construct($parsedMail, $arfMail)
     {
-        $this->parsedMail = $parsedMail;
-        $this->arfMail = $arfMail;
+        parent::__construct($parsedMail, $arfMail, $this);
     }
 
     /**
@@ -30,16 +22,6 @@ class Spamcop extends Parser
      */
     public function parse()
     {
-        // Generalize the local config based on the parser class name.
-        $reflect = new ReflectionClass($this);
-        $this->configBase = 'parsers.' . $reflect->getShortName();
-
-        Log::info(
-            get_class($this) . ': Received message from: ' .
-            $this->parsedMail->getHeader('from') . " with subject: '" .
-            $this->parsedMail->getHeader('subject') . "' arrived at parser: " .
-            config("{$this->configBase}.parser.name")
-        );
 
         $events = [ ];
         $report = [ ];
@@ -164,3 +146,4 @@ class Spamcop extends Parser
         return $this->success($events);
     }
 }
+

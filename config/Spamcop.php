@@ -23,16 +23,24 @@ return [
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',
+                'Received-Date',
             ],
+            'filters'   => [
+                'message',
+            ]
         ],
 
         'spamvertizedreport' => [
-            'class'     => 'SPAM',
-            'type'      => 'Spamvertised web site',
+            'class'     => 'Spamvertised web site',
+            'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',
+                'Received-Date',
             ],
+            'filters'   => [
+                'message',
+            ]
         ],
 
         'summary' => [

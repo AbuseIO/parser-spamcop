@@ -23,7 +23,6 @@ class Spamcop extends Parser
     public function parse()
     {
 
-        $events = [ ];
         $report = [ ];
 
         if ($this->parsedMail->getHeader('subject') == "[SpamCop] summary report") {
@@ -33,117 +32,153 @@ class Spamcop extends Parser
             $this->feedName = 'alert';
 
         } elseif (strpos($this->parsedMail->getHeader('from'), "@reports.spamcop.net") !== false) {
-            // This is a ARF mail with a single event
-            $this->feedName = 'spamreport'; //TODO detect spamvertized
+            // TODO detect spamvertized
+            $this->feedName = 'spamreport';
 
-            if ($this->arfMail === false) {
-                return $this->failed("Detected feed '{$this->feedName}' should be ARF, but received plain message.");
-            }
+            /*
+             * This is a ARF mail with a single event
+             *
+             */
+            if ($this->arfMail !== false) {
+                //Seriously spamcop? Newlines arent in the CL specifications
+                $this->arfMail['report'] = str_replace("\r", "", $this->arfMail['report']);
 
-            //Seriously spamcop? Newlines arent in the CL specifications
-            $this->arfMail['report'] = str_replace("\r", "", $this->arfMail['report']);
+                preg_match_all('/([\w\-]+): (.*)[ ]*\r?\n/', $this->arfMail['report'], $regs);
+                $report = array_combine($regs[1], $regs[2]);
 
-            preg_match_all('/([\w\-]+): (.*)[ ]*\r?\n/', $this->arfMail['report'], $regs);
-            $report = array_combine($regs[1], $regs[2]);
+                //Valueable information put in the body instead of the report, thnx for that Spamcop
+                if (strpos($this->arfMail['message'], 'Comments from recipient') !== false) {
+                    preg_match(
+                        "/Comments from recipient.*\s]\n(.*)\n\n\nThis/s",
+                        str_replace(array("\r", "> "), "", $this->arfMail['message']),
+                        $match
+                    );
+                    $report['recipient_comment'] = str_replace("\n", " ", $match[1]);
+                }
 
-            //Valueable information put in the body instead of the report, thnx for that Spamcop
-            if (strpos($this->parsedMail->getMessageBody(), 'Comments from recipient') !== false) {
-                preg_match(
-                    "/Comments from recipient.*\s]\n(.*)\n\n\nThis/s",
-                    str_replace(array("\r","> "), "", $this->parsedMail->getMessageBody()),
-                    $match
-                );
-                $report['recipient_comment'] = str_replace("\n", " ", $match[1]);
-            }
+                // Add the headers from evidence into infoblob
+                $parsedEvidence = new MimeParser();
+                $parsedEvidence->setText($this->arfMail['evidence']);
+                $headers = $parsedEvidence->getHeaders();
 
-            // Add the headers from evidence into infoblob
-            $parsedEvidence = new MimeParser();
-            $parsedEvidence->setText($this->arfMail['evidence']);
-
-            //$fields['headers'] = [ ];
-            $headers = $parsedEvidence->getHeaders();
-
-            foreach ($headers as $key => $value) {
-                if (is_array($value) || is_object(($value))) {
-                    foreach ($value as $index => $subvalue) {
-                        $report['headers']["${key}${index}"] = "$subvalue";
+                foreach ($headers as $key => $value) {
+                    if (is_array($value) || is_object(($value))) {
+                        foreach ($value as $index => $subvalue) {
+                            $report['headers']["${key}${index}"] = "$subvalue";
+                        }
+                    } else {
+                        $report['headers']["$key"] = $value;
                     }
-                } else {
-                    $report['headers']["$key"] = $value;
                 }
-            }
 
-            // Sometimes Spamcop has a trouble adding the correct fields. The IP is pretty
-            // normal to add. In a last attempt we will try to fetch the IP from the body ourselves
-            if (empty($report['Source-IP'])) {
+                /*
+                 * Sometimes Spamcop has a trouble adding the correct fields. The IP is pretty
+                 * normal to add. In a last attempt we will try to fetch the IP from the body ourselves
+                 */
+                if (empty($report['Source-IP'])) {
+                    preg_match(
+                        "/Email from (?<ip>[a-f0-9:\.]+) \/ " . preg_quote($report['Received-Date']) . "/s",
+                        $this->arfMail['message'],
+                        $regs
+                    );
+
+                    if (!filter_var($regs['ip'], FILTER_VALIDATE_IP) === false) {
+                        $report['Source-IP'] = $regs['ip'];
+                    }
+                }
+            } elseif (strpos($this->parsedMail->getMessageBody(), '[ Offending message ]')) {
+                /*
+                 * This is a spamcop formatted mail with a single event
+                 *
+                 */
+                $body = $this->parsedMail->getMessageBody();
+
+                // Grab the message part from the body
                 preg_match(
-                    "/Email from (?<ip>[a-f0-9:\.]+) \/ ${report['Received-Date']}/s",
-                    $this->parsedMail->getMessageBody(),
-                    $regs
+                    '/(\[ SpamCop V[0-9\.\]\ ]*+)\r?\n(?<message>.*)\r?\n\[ Offending message \]/s',
+                    $body,
+                    $matches
                 );
-                if (!filter_var($regs['ip'], FILTER_VALIDATE_IP) === false) {
-                    $report['Source-IP'] = $regs['ip'];
-                } else {
-                    return $this->failed("Unabled to detect IP address for this event");
+                if (!empty($matches['message'])) {
+                    $report['message'] = $matches['message'];
                 }
+
+                // Grab the Evidence from the body
+                preg_match(
+                    '/(\[ Offending message \]*+)\r?\n(?<evidence>.*)/s',
+                    $body,
+                    $matches
+                );
+                if (!empty($matches['evidence'])) {
+                    $parsedEvidence = new MimeParser();
+                    $parsedEvidence->setText($matches['evidence']);
+                    $report['evidence'] = $parsedEvidence->getHeaders();
+                }
+
+                // Now parse the data from both extracts
+                if (!empty($report['message']) && !empty($report['evidence'])) {
+                    preg_match(
+                        '/Email from (?<ip>[a-f0-9:\.]+) \/ (?<date>.*)\r?\n?\r\n/',
+                        $report['message'],
+                        $matches
+                    );
+
+                    if (!empty($matches['ip']) && !empty($matches['date'])) {
+                        $report['Source-IP'] = $matches['ip'];
+                        $report['Received-Date'] = $matches['date'];
+                    }
+
+                } else {
+                    $this->warningCount++;
+                }
+
+            } else {
+                $this->warningCount++;
             }
 
         } else {
-            return $this->failed("Unabled to detect the report type from this notifier");
+            $this->warningCount++;
         }
 
 
-        if (!$this->isKnownFeed()) {
-            return $this->failed(
-                "Detected feed {$this->feedName} is unknown."
-            );
+        // If feed is known and enabled, validate data and save report
+        if ($this->isKnownFeed() && $this->isEnabledFeed()) {
+            // Sanity check
+            if ($this->hasRequiredFields($report) === true) {
+                // Event has all requirements met, filter and add!
+                $report = $this->applyFilters($report);
+
+                // Now we have our main datasets, we will create the events
+                if ($this->feedName == 'summary') {
+                    // Multi event message, with multiple rows in a table
+
+                } elseif ($this->feedName == 'alert') {
+                    // Multi event message, with on or more IP's in the body
+
+                } elseif ($this->feedName == 'spamreport') {
+                    // Single event message
+
+                    $this->events[] = [
+                        'source'        => config("{$this->configBase}.parser.name"),
+                        'ip'            => $report['Source-IP'],
+                        'domain'        => false,
+                        'uri'           => false,
+                        'class'         => config("{$this->configBase}.feeds.{$this->feedName}.class"),
+                        'type'          => config("{$this->configBase}.feeds.{$this->feedName}.type"),
+                        'timestamp'     => strtotime($report['Received-Date']),
+                        'information'   => json_encode($report),
+                    ];
+
+                } elseif ($this->feedName == 'spamvertizedreport') {
+                    // Single event message
+
+                } else {
+                    $this->warningCount++;
+                }
+
+            }
         }
 
-        if (!$this->isEnabledFeed()) {
-            return $this->success($events);
-        }
-
-        if (!$this->hasRequiredFields($report)) {
-            return $this->failed(
-                "Required field {$this->requiredField} is missing or the config is incorrect."
-            );
-        }
-
-        $report = $this->applyFilters($report);
-
-
-        // Now we have our main datasets, we will create the events
-        if ($this->feedName == 'summary') {
-            // Multi event message, with multiple rows in a table
-
-        } elseif ($this->feedName == 'alert') {
-            // Multi event message, with on or more IP's in the body
-
-        } elseif ($this->feedName == 'spamreport') {
-            // Single event message
-
-            $event = [
-                'source'        => config("{$this->configBase}.parser.name"),
-                'ip'            => $report['Source-IP'],
-                'domain'        => false,
-                'uri'           => false,
-                'class'         => config("{$this->configBase}.feeds.{$this->feedName}.class"),
-                'type'          => config("{$this->configBase}.feeds.{$this->feedName}.type"),
-                'timestamp'     => strtotime($report['Received-Date']),
-                'information'   => json_encode($report),
-            ];
-
-            $events[] = $event;
-
-        } elseif ($this->feedName == 'spamvertizedreport') {
-            // Single event message
-
-        } else {
-            return $this->failed("Passed feedtype seems exist, but feedtype was not defined?!");
-        }
-
-
-        return $this->success($events);
+        return $this->success();
     }
 }
-

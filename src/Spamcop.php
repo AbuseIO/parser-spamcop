@@ -22,68 +22,70 @@ class Spamcop extends Parser
      */
     public function parse()
     {
-        $report = [ ];
+        $reports = [ ];
 
         if ($this->parsedMail->getHeader('subject') == "[SpamCop] summary report") {
             $this->feedName = 'summary';
-            $report = $this->parseSummaryReport();
+            $reports = $this->parseSummaryReport();
 
         } elseif ($this->parsedMail->getHeader('subject') == "[SpamCop] Alert") {
             $this->feedName = 'alert';
-            $report = $this->parseAlerts();
+            $reports = $this->parseAlerts();
 
         } elseif ((strpos($this->parsedMail->getHeader('from'), "@reports.spamcop.net") !== false) &&
                   ($this->arfMail !== false)
         ) {
             $this->feedName = 'spamreport';
-            $report = $this->parseSpamReportArf();
+            $reports = $this->parseSpamReportArf();
 
         } elseif ((strpos($this->parsedMail->getHeader('from'), "@reports.spamcop.net") !== false) &&
                   (strpos($this->parsedMail->getMessageBody(), '[ Offending message ]'))
         ) {
             $this->feedName = 'spamreport';
-            $report = $this->parseSpamReportCustom();
+            $reports = $this->parseSpamReportCustom();
 
         } else {
             $this->warningCount++;
 
         }
 
-        // If feed is known and enabled, validate data and save report
-        if ($this->isKnownFeed() && $this->isEnabledFeed()) {
-            // Sanity check
-            if ($this->hasRequiredFields($report) === true) {
-                // Event has all requirements met, filter and add!
-                $report = $this->applyFilters($report);
+        foreach ($reports as $report) {
+            // If feed is known and enabled, validate data and save report
+            if ($this->isKnownFeed() && $this->isEnabledFeed()) {
+                // Sanity check
+                if ($this->hasRequiredFields($report) === true) {
+                    // Event has all requirements met, filter and add!
+                    $report = $this->applyFilters($report);
 
-                // Now we have our main datasets, we will create the events
-                if ($this->feedName == 'summary') {
-                    // Multi event message, with multiple rows in a table
+                    if (!empty($report['Spam-URL'])) {
+                        $url = $report['Spam-URL'];
+                    }
+                    if (!empty($report['Reported-URI'])) {
+                        $url = $report['Reported-URI'];
+                    }
 
-                } elseif ($this->feedName == 'alert') {
-                    // Multi event message, with on or more IP's in the body
+                    if (!empty($url)) {
+                        $urlinfo = parse_url($url);
 
-                } elseif ($this->feedName == 'spamreport') {
-                    // Single event message
+                        if (!empty($urlinfo['host']) && !empty($urlinfo['path'])) {
+                            $domain = $urlinfo['host'];
+                            $uri = $urlinfo['path'];
+                            $this->feedName = 'spamvertizedreport';
+                        }
+                    }
 
                     $this->events[] = [
                         'source'        => config("{$this->configBase}.parser.name"),
                         'ip'            => $report['Source-IP'],
-                        'domain'        => false,
-                        'uri'           => false,
+                        'domain'        => !empty($domain) ? $domain : false,
+                        'uri'           => !empty($uri) ? $uri : false,
                         'class'         => config("{$this->configBase}.feeds.{$this->feedName}.class"),
                         'type'          => config("{$this->configBase}.feeds.{$this->feedName}.type"),
                         'timestamp'     => strtotime($report['Received-Date']),
                         'information'   => json_encode($report),
                     ];
 
-                } elseif ($this->feedName == 'spamvertizedreport') {
-                    // Single event message
-
-                } else {
-                    $this->warningCount++;
                 }
-
             }
         }
 
@@ -97,10 +99,39 @@ class Spamcop extends Parser
     public function parseSummaryReport()
     {
 
-        $report = [ ];
+        $reports = [ ];
 
-        return $report;
+        preg_match_all(
+            "/^\s*".
+            "(?<ip>[a-f0-9:\.]+)\s+".
+            "(?<date>\w+\s+\d+\s\d+)h\/".
+            "(?<days>\d+)\s+".
+            "(?<trap>\d+)\s+".
+            "(?<user>\d+)\s+".
+            "(?<mole>\d+)\s+".
+            "(?<simp>\d+)".
+            "/m",
+            $this->parsedMail->getMessageBody(),
+            $matches,
+            PREG_SET_ORDER
+        );
 
+        if (is_array($matches) && count($matches) > 0) {
+            foreach ($matches as $match) {
+                $report = [
+                    'Source-IP' => $match['ip'],
+                    'Received-Date' => $match['date'] . ':00',
+                    'Duration-Days' => $match['days'],
+                ];
+                foreach (['trap', 'user', 'mole', 'simp'] as $field) {
+                    $report[ucfirst($field) ."-Report"] = $match[$field];
+                }
+
+                $reports[] = $report;
+            }
+        }
+
+        return $reports;
     }
 
 
@@ -111,9 +142,31 @@ class Spamcop extends Parser
     public function parseAlerts()
     {
 
-        $report = [ ];
+        $reports = [ ];
 
-        return $report;
+        preg_match_all(
+            '/\s*(?<ip>[a-f0-9:\.]+)\r?\n?\r\n/',
+            $this->parsedMail->getMessageBody(),
+            $matches
+        );
+
+        $received = $this->parsedMail->getHeaders()['date'];
+        if (strtotime(date('d-m-Y H:i:s', strtotime($received))) !== (int)strtotime($received)) {
+            $received = date('d-m-Y H:i:s');
+        }
+
+        if (is_array($matches) && !empty($matches['ip']) && count($matches['ip']) > 0) {
+            foreach ($matches['ip'] as $ip) {
+                $reports[] = [
+                    'Source-IP' => $ip,
+                    'Received-Date' => $received,
+                    'Note' => 'A spamtrap hit notification was received.'.
+                        ' These notifications do not provide any evidence.'
+                ];
+            }
+        }
+
+        return $reports;
 
     }
 
@@ -125,7 +178,7 @@ class Spamcop extends Parser
     public function parseSpamReportCustom()
     {
 
-        $report = [ ];
+        $reports = [ ];
         $body = $this->parsedMail->getMessageBody();
 
         // Grab the message part from the body
@@ -161,13 +214,39 @@ class Spamcop extends Parser
             if (!empty($matches['ip']) && !empty($matches['date'])) {
                 $report['Source-IP'] = $matches['ip'];
                 $report['Received-Date'] = $matches['date'];
+
+                $reports[] = $report;
+            }
+
+            /*
+             * Why would you use a single format while you can use different formats huh Spamcop?
+             * For spamvertized we need to do some magic to build the report correctly
+             *             "(?<mole>\d+)\s+".
+             */
+            preg_match(
+                '/Spamvertised web site:\s'.
+                '(?<url>.*)\r?\n?\r\n'.
+                '(?<reply>.*)\r?\n?\r\n'.
+                '(?<resolved>.*) is (?<ip>.*); (?<date>.*)\r?\n?\r\n'.
+                '/',
+                $report['message'],
+                $matches
+            );
+
+            if (!empty($matches['ip']) && !empty($matches['date']) && !empty($matches['url'])) {
+                $report['Source-IP'] = $matches['ip'];
+                $report['Received-Date'] = $matches['date'];
+                $report['Report-URL'] = $matches['reply'];
+                $report['Spam-URL'] = $matches['url'];
+
+                $reports[] = $report;
             }
 
         } else {
             $this->warningCount++;
         }
 
-        return $report;
+        return $reports;
     }
 
 
@@ -177,6 +256,7 @@ class Spamcop extends Parser
      */
     public function parseSpamReportArf()
     {
+        $reports = [ ];
 
         //Seriously spamcop? Newlines arent in the CL specifications
         $this->arfMail['report'] = str_replace("\r", "", $this->arfMail['report']);
@@ -235,6 +315,8 @@ class Spamcop extends Parser
             }
         }
 
-        return $report;
+        $reports[] = $report;
+
+        return $reports;
     }
 }

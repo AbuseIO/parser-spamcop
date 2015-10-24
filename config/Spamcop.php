@@ -48,16 +48,24 @@ return [
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
-                //
+                'Source-IP',
+                'Received-Date',
+                'Duration-Days',
+                'Trap-Report',
+                'User-Report',
+                'Mole-Report',
+                'Simp-Report',
             ],
         ],
 
         'alert' => [
-            'class'     => 'SPAM',
+            'class'     => 'SPAM Trap',
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
-                //
+                'Source-IP',
+                'Received-Date',
+                'Note',
             ],
         ],
     ],

@@ -4,11 +4,18 @@ namespace AbuseIO\Parsers;
 
 use PhpMimeMailParser\Parser as MimeParser;
 
+/**
+ * Class Spamcop
+ * @package AbuseIO\Parsers
+ */
 class Spamcop extends Parser
 {
 
     /**
      * Create a new Spamcop instance
+     *
+     * @param \PhpMimeMailParser\Parser $parsedMail phpMimeParser object
+     * @param array $arfMail array with ARF detected results
      */
     public function __construct($parsedMail, $arfMail)
     {
@@ -17,7 +24,7 @@ class Spamcop extends Parser
 
     /**
      * Parse attachments
-     * @return Array    Returns array with failed or success data
+     * @return array    Returns array with failed or success data
      *                  (See parser-common/src/Parser.php) for more info.
      */
     public function parse()
@@ -92,9 +99,10 @@ class Spamcop extends Parser
         return $this->success();
     }
 
-    /*
+    /**
      * This is a spamcop formatted summery with a multiple events
      *
+     * @return array $reports
      */
     public function parseSummaryReport()
     {
@@ -135,9 +143,10 @@ class Spamcop extends Parser
     }
 
 
-    /*
+    /**
      * This is a spamcop formatted alert with a multiple events
      *
+     * @return array $reports
      */
     public function parseAlerts()
     {
@@ -171,9 +180,10 @@ class Spamcop extends Parser
     }
 
 
-    /*
+    /**
      * This is a spamcop formatted mail with a single event
      *
+     * @return array $reports
      */
     public function parseSpamReportCustom()
     {
@@ -250,9 +260,10 @@ class Spamcop extends Parser
     }
 
 
-    /*
+    /**
      * This is a ARF mail with a single event
      *
+     * @return array $reports
      */
     public function parseSpamReportArf()
     {

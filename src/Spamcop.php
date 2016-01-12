@@ -2,6 +2,7 @@
 
 namespace AbuseIO\Parsers;
 
+use AbuseIO\Models\Incident;
 use PhpMimeMailParser\Parser as MimeParser;
 
 /**
@@ -81,17 +82,18 @@ class Spamcop extends Parser
                         }
                     }
 
-                    $this->events[] = [
-                        'source'        => config("{$this->configBase}.parser.name"),
-                        'ip'            => $report['Source-IP'],
-                        'domain'        => !empty($domain) ? $domain : false,
-                        'uri'           => !empty($uri) ? $uri : false,
-                        'class'         => config("{$this->configBase}.feeds.{$this->feedName}.class"),
-                        'type'          => config("{$this->configBase}.feeds.{$this->feedName}.type"),
-                        'timestamp'     => strtotime($report['Received-Date']),
-                        'information'   => json_encode($report),
-                    ];
+                    $incident = new Incident();
+                    $incident->source      = config("{$this->configBase}.parser.name");
+                    $incident->source_id   = false;
+                    $incident->ip          = $report['Source-IP'];
+                    $incident->domain      = !empty($domain) ? $domain : false;
+                    $incident->uri         = !empty($uri) ? $uri : false;
+                    $incident->class       = config("{$this->configBase}.feeds.{$this->feedName}.class");
+                    $incident->type        = config("{$this->configBase}.feeds.{$this->feedName}.type");
+                    $incident->timestamp   = strtotime($report['Received-Date']);
+                    $incident->information = json_encode($report);
 
+                    $this->events[] = $incident;
                 }
             }
         }

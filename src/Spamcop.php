@@ -62,7 +62,7 @@ class Spamcop extends Parser
             if ($this->isKnownFeed() && $this->isEnabledFeed()) {
                 // Sanity check
                 if ($this->hasRequiredFields($report) === true) {
-                    // Event has all requirements met, filter and add!
+                    // incident has all requirements met, filter and add!
                     $report = $this->applyFilters($report);
 
                     if (!empty($report['Spam-URL'])) {
@@ -93,7 +93,7 @@ class Spamcop extends Parser
                     $incident->timestamp   = strtotime($report['Received-Date']);
                     $incident->information = json_encode($report);
 
-                    $this->events[] = $incident;
+                    $this->incidents[] = $incident;
                 }
             }
         }
@@ -102,7 +102,7 @@ class Spamcop extends Parser
     }
 
     /**
-     * This is a spamcop formatted summery with a multiple events
+     * This is a spamcop formatted summery with a multiple incidents
      *
      * @return array $reports
      */
@@ -146,7 +146,7 @@ class Spamcop extends Parser
 
 
     /**
-     * This is a spamcop formatted alert with a multiple events
+     * This is a spamcop formatted alert with a multiple incidents
      *
      * @return array $reports
      */
@@ -183,7 +183,7 @@ class Spamcop extends Parser
 
 
     /**
-     * This is a spamcop formatted mail with a single event
+     * This is a spamcop formatted mail with a single incident
      *
      * @return array $reports
      */
@@ -263,7 +263,7 @@ class Spamcop extends Parser
 
 
     /**
-     * This is a ARF mail with a single event
+     * This is a ARF mail with a single incident
      *
      * @return array $reports
      */

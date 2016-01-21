@@ -156,8 +156,9 @@ class Spamcop extends Parser
         $reports = [ ];
 
         preg_match_all(
-            '/\s*(?<ip>[a-f0-9:\.]+)\r?\n?\r\n/',
-            $this->parsedMail->getMessageBody(),
+            '/\s*(?<ip>[a-f0-9:\.]+)/',
+            // Someone from spamcop found it funny to prefix IPv6 addresses, so lets strip that off
+            str_replace('IPv6 ', '', $this->parsedMail->getMessageBody()),
             $matches
         );
 
@@ -209,6 +210,7 @@ class Spamcop extends Parser
             $body,
             $matches
         );
+
         if (!empty($matches['evidence'])) {
             $parsedEvidence = new MimeParser();
             $parsedEvidence->setText($matches['evidence']);
@@ -218,7 +220,7 @@ class Spamcop extends Parser
         // Now parse the data from both extracts
         if (!empty($report['message']) && !empty($report['evidence'])) {
             preg_match(
-                '/Email from (?<ip>[a-f0-9:\.]+) \/ (?<date>.*)\r?\n?\r\n/',
+                '/Email from (?<ip>[a-f0-9:\.]+) \/ (?<date>.*)/',
                 $report['message'],
                 $matches
             );

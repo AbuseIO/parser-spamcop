@@ -31,7 +31,7 @@ return [
         ],
 
         'spamvertizedreport' => [
-            'class'     => 'Spamvertised web site',
+            'class'     => 'SPAMVERTISED_WEBSITE',
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [
@@ -59,7 +59,7 @@ return [
         ],
 
         'alert' => [
-            'class'     => 'SPAM Trap',
+            'class'     => 'SPAMTRAP',
             'type'      => 'Abuse',
             'enabled'   => true,
             'fields'    => [

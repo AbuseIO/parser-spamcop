@@ -19,7 +19,7 @@ return [
     'feeds' => [
         'spamreport' => [
             'class'     => 'SPAM',
-            'type'      => 'Abuse',
+            'type'      => 'ABUSE',
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',
@@ -32,7 +32,7 @@ return [
 
         'spamvertizedreport' => [
             'class'     => 'SPAMVERTISED_WEBSITE',
-            'type'      => 'Abuse',
+            'type'      => 'ABUSE',
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',
@@ -45,7 +45,7 @@ return [
 
         'summary' => [
             'class'     => 'SPAM',
-            'type'      => 'Abuse',
+            'type'      => 'ABUSE',
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',
@@ -60,7 +60,7 @@ return [
 
         'alert' => [
             'class'     => 'SPAMTRAP',
-            'type'      => 'Abuse',
+            'type'      => 'ABUSE',
             'enabled'   => true,
             'fields'    => [
                 'Source-IP',

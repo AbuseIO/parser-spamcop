@@ -76,7 +76,7 @@ class Spamcop extends Parser
                         $urlinfo = parse_url($url);
 
                         if (!empty($urlinfo['host']) && !empty($urlinfo['path'])) {
-                            $domain = $urlinfo['host'];
+                            $domain = str_replace('www.', '', $urlinfo['host']);
                             $uri = $urlinfo['path'];
                             $this->feedName = 'spamvertizedreport';
                         }
@@ -237,11 +237,12 @@ class Spamcop extends Parser
              * For spamvertized we need to do some magic to build the report correctly
              *             "(?<mole>\d+)\s+".
              */
+            $report['message'] = str_replace('\r', '', $report['message']);
             preg_match(
                 '/Spamvertised web site:\s'.
-                '(?<url>.*)\r?\n?\r\n'.
-                '(?<reply>.*)\r?\n?\r\n'.
-                '(?<resolved>.*) is (?<ip>.*); (?<date>.*)\r?\n?\r\n'.
+                '(?<url>.*)\\n'.
+                '(?<reply>.*)\n'.
+                '(?<resolved>.*) is (?<ip>.*); (?<date>.*)\n'.
                 '/',
                 $report['message'],
                 $matches

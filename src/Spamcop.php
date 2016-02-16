@@ -73,11 +73,8 @@ class Spamcop extends Parser
                     }
 
                     if (!empty($url)) {
-                        $urlinfo = parse_url($url);
-
-                        if (!empty($urlinfo['host']) && !empty($urlinfo['path'])) {
-                            $domain = str_replace('www.', '', $urlinfo['host']);
-                            $uri = $urlinfo['path'];
+                        $urlData = getUrldata($url);
+                        if (!empty($urlData['host']) && !empty($urlData['path'])) {
                             $this->feedName = 'spamvertizedreport';
                         }
                     }
@@ -86,8 +83,8 @@ class Spamcop extends Parser
                     $incident->source      = config("{$this->configBase}.parser.name");
                     $incident->source_id   = false;
                     $incident->ip          = $report['Source-IP'];
-                    $incident->domain      = !empty($domain) ? $domain : false;
-                    $incident->uri         = !empty($uri) ? $uri : false;
+                    $incident->domain      = getDomain($url);
+                    $incident->uri         = getUri($url);
                     $incident->class       = config("{$this->configBase}.feeds.{$this->feedName}.class");
                     $incident->type        = config("{$this->configBase}.feeds.{$this->feedName}.type");
                     $incident->timestamp   = strtotime($report['Received-Date']);

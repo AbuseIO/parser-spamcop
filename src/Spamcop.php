@@ -84,7 +84,6 @@ class Spamcop extends Parser
                     $incident->source_id   = false;
                     $incident->ip          = $report['Source-IP'];
                     $incident->domain      = empty($url) ? false : getDomain($url);
-                    $incident->uri         = empty($url) ? false : getUri($url);
                     $incident->class       = config("{$this->configBase}.feeds.{$this->feedName}.class");
                     $incident->type        = config("{$this->configBase}.feeds.{$this->feedName}.type");
                     $incident->timestamp   = strtotime($report['Received-Date']);
